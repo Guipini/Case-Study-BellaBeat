@@ -1,0 +1,181 @@
+---
+title: "BellaBeat_CaseStudy"
+author: "Gustavo Guidini"
+date: "2023-01-26"
+output:
+  html_document: default
+---
+
+## Installing and loading common packages and libraries
+```{r install}
+library(tidyverse)
+library(janitor)
+```
+
+
+## Loading CSV files using the path of your Data
+```{r read and assign}
+dir <- "C:/Users/Gustavo/Desktop/Case Studies/BellaBeat_Case_Studie/Data/Fitabase Data"
+
+file_names <- list.files(dir)
+
+for (file in file_names) {
+  data <- read.csv(file.path(dir, file))
+  assign(file, data)
+}
+```
+
+
+## Create a list with all data sets
+
+### To reduce Ram usage in running codes I divided in 3 list of data sets
+```{r list}
+lst1 <- list(dailyActivity_merged.csv,
+            dailyCalories_merged.csv,
+            dailyIntensities_merged.csv,
+            dailySteps_merged.csv,
+            heartrate_seconds_merged.csv,
+            hourlyCalories_merged.csv)
+
+lst2 <- list(hourlyIntensities_merged.csv,
+            hourlySteps_merged.csv,
+            minuteCaloriesNarrow_merged.csv,
+            minuteCaloriesWide_merged.csv,
+            minuteIntensitiesNarrow_merged.csv,
+            minuteIntensitiesWide_merged.csv)
+
+lst3 <- list(minuteMETsNarrow_merged.csv,
+            minuteSleep_merged.csv,
+            minuteStepsNarrow_merged.csv,
+            minuteStepsWide_merged.csv,
+            sleepDay_merged.csv,
+            weightLogInfo_merged.csv)
+```
+
+
+## Cleaning Steps
+
+### Count number of duplicates Rows
+```{r count duplicates}
+lapply(lst1, function(x) nrow(x[duplicated(x), ]))
+lapply(lst2, function(x) nrow(x[duplicated(x), ]))
+lapply(lst3, function(x) nrow(x[duplicated(x), ]))
+```
+
+### Removing the duplicates Rows
+```{r remove duplicates}
+lst1 <- Map(function(x) x %>% distinct(.keep_all = TRUE), lst1)
+lst2 <- Map(function(x) x %>% distinct(.keep_all=TRUE), lst2)
+lst3 <- Map(function(x) x %>% distinct(.keep_all=TRUE), lst3)
+```
+
+### Ensures that there's only characters, numbers, and underscores in the names
+```{r clean}
+lapply(lst1, function(x) head(clean_names(x)))
+lapply(lst2, function(x) head(clean_names(x)))
+lapply(lst3, function(x) head(clean_names(x)))
+```
+
+
+## Show how many uniques ID in the data sets
+```{r Id}
+lapply(lst1, function(x) n_distinct(x$Id))
+lapply(lst2, function(x) n_distinct(x$Id))
+lapply(lst3, function(x) n_distinct(x$Id))
+```
+
+
+## Move out the data sets in the list to Environment
+```{r move out files}
+original_names_lst1 <- c("dailyActivity_merged.csv",
+                        "dailyCalories_merged.csv",
+                        "dailyIntensities_merged.csv",
+                        "dailySteps_merged.csv",
+                        "heartrate_seconds_merged.csv",
+                        "hourlyCalories_merged.csv")
+
+original_names_lst2 <- c("hourlyIntensities_merged.csv",
+                        "hourlySteps_merged.csv",
+                        "minuteCaloriesNarrow_merged.csv",
+                        "minuteCaloriesWide_merged.csv",
+                        "minuteIntensitiesNarrow_merged.csv",
+                        "minuteIntensitiesWide_merged.csv")
+
+original_names_lst3 <- c("minuteMETsNarrow_merged.csv",
+                        "minuteSleep_merged.csv",
+                        "minuteStepsNarrow_merged.csv",
+                        "minuteStepsWide_merged.csv",
+                        "sleepDay_merged.csv",
+                        "weightLogInfo_merged.csv")
+
+for (i in seq_along(lst1)) {
+  element <- lst1[[i]]
+  assign(original_names_lst1[i], element)
+}
+for (i in seq_along(lst2)) {
+  element <- lst2[[i]]
+  assign(original_names_lst2[i], element)
+}
+for (i in seq_along(lst3)) {
+  element <- lst3[[i]]
+  assign(original_names_lst3[i], element)
+}
+rm(element)
+```
+
+
+## Analysis
+
+### Merging the data sets that I am using (daily_dataSets) for better plotting
+```{r merge}
+dailyActivity_merged.csv <- dailyActivity_merged.csv %>% rename_at("ActivityDate", ~"ActivityDay")
+
+combDaily <- list(dailyActivity_merged.csv,
+                  dailySteps_merged.csv)
+
+combined_dailyData <- combDaily %>%  reduce(full_join, by = c("Id","ActivityDay"))
+rm(combDaily)
+combined_dailyData <- combined_dailyData %>% distinct(.keep_all=TRUE)
+```
+
+### Identify all the columns
+```{r colum names}
+colnames(combined_dailyData)
+```
+
+### Summary
+```{r sumarry}
+combined_dailyData %>% select(VeryActiveDistance, LightActiveDistance, TotalDistance ) %>%  summary()
+```
+
+### TotalDistance vs. Variation of Intensity by Distance
+
+#### Pay attention to the angle forming a invisble line limiting the y axis, and being realeated to the rate of the activaty.
+
+#### VeryActive
+```{r plot Very}
+ggplot(data <- combined_dailyData) +
+  geom_jitter(mapping = aes(x =TotalDistance , y =VeryActiveDistance, color = VeryActiveDistance))
+```
+
+
+#### LightActive
+```{r plot Light}
+ggplot(data <- combined_dailyData) +
+  geom_jitter(mapping = aes(x =TotalDistance , y =LightActiveDistance, color = LightActiveDistance ))
+```
+
+### Both of them
+```{r both}
+ggplot(data <- combined_dailyData) + 
+  geom_jitter(mapping = aes(x =TotalDistance , y =VeryActiveDistance, color = "VeryActive" )) +
+  geom_jitter(mapping = aes(x =TotalDistance , y =LightActiveDistance, color = "LightActive" ))
+```
+
+#### So the Bellabeat app is clearly showing limitations in the recording system.
+
+#### For solutions I recommend to update the system measuring the active intesity and and use the past average distance to create daily challangers and tasks, so can feel more eager to use the app and so increasing the UI interation to the user
+
+
+
+
